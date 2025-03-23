@@ -1,22 +1,15 @@
 package org.noughtsandcrosses.domain.service;
 
+import org.noughtsandcrosses.domain.model.GameField;
+
 public interface GameService {
-    /***
-     * Рекурсивная функция минимакс
-     * getFreeCell - для поиска свободных клеток
-     * GameEnd - для определения победы
-     * isValidFieldGame - для валидации игрового поля текущей игры (проверь, что не изменены предыдущие ходы)
-     * получаем все свободные ячейки
-     * проверяем состояние игры
-     * далее запускаем фор в котором для каждой свободной ячейки ставим ИИ и с новыми данными вызываем минимакс
-     * и после этого где то сохраняем результат работы и кладем его например в лист
-     * после из листа выбираем наилучший вариант
-     * каждый раз надо в минимакс чередовать передачу хода игрока и ИИ
-     * таким образом в конечном итоге мы получим просчёт всех возможных вариантов исходов событий игры
-     */
+
     int gameEnd();
     boolean isValidFieldGame();
-    boolean minimax(String player, int [] gameField);
-    int[] getFreeCell(int [] gameField);
+    int minimax(int player, GameField field);
+    int[] getFreeCell(GameField field);
+
+    int isGameWining (GameField field);
+
 
 }
