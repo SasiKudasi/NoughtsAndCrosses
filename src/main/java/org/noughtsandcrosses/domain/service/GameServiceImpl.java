@@ -3,124 +3,166 @@ package org.noughtsandcrosses.domain.service;
 import org.noughtsandcrosses.domain.model.GameField;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class GameServiceImpl implements GameService {
-    private final int CROSS = 1;
-    private final int ZERO = 2;
-    private final int FREECELL = 0;
+    private static final int CROSS = 1;   // AI
+    private static final int ZERO = 2;    // Человек
+    private static final int FREECELL = 0;
 
-    /***
-     * Рекурсивная функция минимакс
-     * getFreeCell - для поиска свободных клеток
-     * GameEnd - для определения победы
-     * isValidFieldGame - для валидации игрового поля текущей игры (проверь, что не изменены предыдущие ходы)
-     * получаем все свободные ячейки
-     * проверяем состояние игры
-     * далее запускаем фор в котором для каждой свободной ячейки ставим ИИ и с новыми данными вызываем минимакс
-     * и после этого где то сохраняем результат работы и кладем его например в лист
-     * после из листа выбираем наилучший вариант
-     * каждый раз надо в минимакс чередовать передачу хода игрока и ИИ
-     * таким образом в конечном итоге мы получим просчёт всех возможных вариантов исходов событий игры
-     */
+    // Структура для хранения оценки хода и его координат
+    private static class Move {
+        int score;
+        int row;
+        int col;
 
-    @Override
-    public int gameEnd() {
-        return 0;
+        Move(int score) {
+            this.score = score;
+        }
     }
 
-    @Override
-    public int isGameWining(GameField field) {
-        var gameField = field.getGameField();
+    public int minimax(int player, GameField field) {
+        Move bestMove = minimaxRecursive(player, field);
+        return bestMove.score; // Возвращаем оценку лучшего хода
+    }
 
-        // проверка по строкам
-        for (int i = 0; i < 3; i++) {
-            if (gameField[i][0] != FREECELL && gameField[i][0] == gameField[i][1] && gameField[i][1] == gameField[i][2])
-                return gameField[i][0];
-        }
-        // проверка по столбцам
-        for (int i = 0; i < 3; i++) {
-            if (gameField[0][i] != FREECELL && gameField[0][i] == gameField[1][i] && gameField[1][i] == gameField[2][i])
-                return gameField[0][i];
-        }
+    private Move minimaxRecursive(int player, GameField field) {
+        int[][] board = field.getGameField();
 
+        // Проверяем состояние игры
+        int winner = isGameWining(field);
+        if (winner == CROSS) return new Move(10);   // AI выиграл
+        if (winner == ZERO) return new Move(-10);   // Игрок выиграл
+        if (isBoardFull(board)) return new Move(0); // Ничья
 
-        if (gameField[0][0] != FREECELL && gameField[0][0] == gameField[1][1] && gameField[1][1] == gameField[2][2])
-            return gameField[0][0];
+        List<int[]> availableMoves = getFreeCells(field);
+        Move bestMove = new Move(player == CROSS ? Integer.MIN_VALUE : Integer.MAX_VALUE);
 
-        if (gameField[0][2] != FREECELL && gameField[0][2] == gameField[1][1] && gameField[1][1] == gameField[2][0])
-            return gameField[0][2];
+        // Перебираем все доступные ходы
+        for (int[] cell : availableMoves) {
+            int row = cell[0];
+            int col = cell[1];
 
-        boolean isDraw = true;
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                if (gameField[i][j] == FREECELL) {
-                    isDraw = false;
-                    break;
+            board[row][col] = player; // Делаем ход
+            int score = minimaxRecursive(player == CROSS ? ZERO : CROSS, field).score;
+            board[row][col] = FREECELL; // Откатываем ход
+
+            // Выбираем лучший ход
+            if (player == CROSS) { // AI (ищем максимум)
+                if (score > bestMove.score) {
+                    bestMove.score = score;
+                    bestMove.row = row;
+                    bestMove.col = col;
+                }
+            } else { // Игрок (ищем минимум)
+                if (score < bestMove.score) {
+                    bestMove.score = score;
+                    bestMove.row = row;
+                    bestMove.col = col;
                 }
             }
         }
 
-        return isDraw ? 0 : -1;
+        return bestMove;
     }
 
-    @Override
-    public boolean isValidFieldGame() {
-        return false;
-    }
-
-    @Override
-    public int minimax(int player, GameField field) {
-        int[][] tmpFld = field.getGameField(); // Получаем текущее поле
-        var availCellArr = getFreeCell(field); // Получаем список свободных клеток
-
-        // Проверяем, завершена ли игра
-        int winStatement = isGameWining(field);
-        if (winStatement == CROSS) return 10;  // Если выиграл X (CROSS), вернуть 10
-        if (winStatement == ZERO) return -10;  // Если выиграл O (ZERO), вернуть -10
-        if (winStatement == -1) return  0;
-
-        ArrayList<Integer> moves = new ArrayList<>();
-
-        for (int i = 0; i < availCellArr.length; i++) {
-            if (availCellArr[i] == 99) continue; // скипаем мусор
-
-            int row = availCellArr[i] / 3;
-            int col = availCellArr[i] % 3;
-
-            int oldValue = tmpFld[row][col]; // Сохраняем старое значение
-            tmpFld[row][col] = player; // Пробуем ход
-
-            // Рекурсивный вызов minimax для следующего игрока
-            var newField = new GameField();
-            newField.setGameField(tmpFld);
-            int move = minimax(player == CROSS ? ZERO : CROSS, newField);
-
-            tmpFld[row][col] = oldValue; // Восстанавливаем поле
-
-            moves.add(move);
-        }
-
-        // Выбираем лучший ход
-        return player == CROSS
-                ? moves.stream().max(Integer::compare).orElse(0)
-                : moves.stream().min(Integer::compare).orElse(0);
-    }
-
-    @Override
-    public int[] getFreeCell(GameField gameField) {
-
-        var field = gameField.getGameField();
-        var idx = 0;
-        var idxArr = new int[9];
-        for (int i = 0; i < idxArr.length; i++)
-            idxArr[i] = 99; // заполняю каким то мусором, что бы в дальнейшем на него проверять
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                if (field[i][j] == FREECELL)
-                    idxArr[idx] = idx;
-                idx++;
+    // Проверка на ничью (поле заполнено)
+    private boolean isBoardFull(int[][] board) {
+        for (int[] row : board) {
+            for (int cell : row) {
+                if (cell == FREECELL) return false;
             }
         }
-        return idxArr;
+        return true;
     }
+
+    // Получение списка свободных ячеек (возвращает координаты строка-столбец)
+    private List<int[]> getFreeCells(GameField gameField) {
+        List<int[]> freeCells = new ArrayList<>();
+        int[][] board = gameField.getGameField();
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (board[i][j] == FREECELL) {
+                    freeCells.add(new int[]{i, j});
+                }
+            }
+        }
+
+        return freeCells;
+    }
+
+    /***
+     * Проверка на завершение игры
+     * @param field класс игрового поля
+     * @return 1 в случае победы крестиков, 2 в случае победы ноликов, -1 в случае если игра продолжается
+     */
+    @Override
+    public int isGameWining(GameField field) {
+        int[][] gameField = field.getGameField();
+
+        // Проверка по строкам и столбцам
+        for (int i = 0; i < 3; i++) {
+            if (gameField[i][0] != FREECELL && gameField[i][0] == gameField[i][1] && gameField[i][1] == gameField[i][2])
+                return gameField[i][0];
+            if (gameField[0][i] != FREECELL && gameField[0][i] == gameField[1][i] && gameField[1][i] == gameField[2][i])
+                return gameField[0][i];
+        }
+
+        // Проверка диагоналей
+        if (gameField[0][0] != FREECELL && gameField[0][0] == gameField[1][1] && gameField[1][1] == gameField[2][2])
+            return gameField[0][0];
+        if (gameField[0][2] != FREECELL && gameField[0][2] == gameField[1][1] && gameField[1][1] == gameField[2][0])
+            return gameField[0][2];
+
+        return -1; // Игра продолжается
+    }
+
+    @Override
+    public GameField findBestMove(GameField field, int player) {
+        int bestScore = Integer.MIN_VALUE;
+        int[] bestMove = {-1, -1};
+
+        int[][] board = field.getGameField();
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (board[i][j] == FREECELL) { // Если клетка свободна
+                    board[i][j] = player; // Пробуем ход
+                    int score = minimax(2, field); // Запускаем минимакс для противника
+                    board[i][j] = FREECELL; // Откатываем ход
+
+                    if (score > bestScore) { // Если нашли лучший ход
+                        bestScore = score;
+                        bestMove[0] = i;
+                        bestMove[1] = j;
+                    }
+                }
+            }
+        }
+
+        if (bestMove[0] != -1 && bestMove[1] != -1) { // Проверяем, что нашли ход
+            board[bestMove[0]][bestMove[1]] = player;
+        }
+        return field;
+    }
+
+    @Override
+    public boolean isValidMove(GameField previousField, GameField currentField, int player) {
+        var prevBoard = previousField.getGameField();
+        var curBoard = currentField.getGameField();
+        int moveCount = 0;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (prevBoard[i][j] != FREECELL) {
+                    if (prevBoard[i][j] != curBoard[i][j]) return false;
+                } else {
+                    if (curBoard[i][j] == player)
+                        moveCount++;
+                }
+            }
+        }
+        return moveCount == 1;
+    }
+
 }

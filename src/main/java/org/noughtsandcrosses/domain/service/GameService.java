@@ -4,12 +4,8 @@ import org.noughtsandcrosses.domain.model.GameField;
 
 public interface GameService {
 
-    int gameEnd();
-    boolean isValidFieldGame();
-    int minimax(int player, GameField field);
-    int[] getFreeCell(GameField field);
-
-    int isGameWining (GameField field);
-
+    GameField findBestMove(GameField field, int player);
+    boolean isValidMove(GameField previousField, GameField currentField, int player);
+    int isGameWining(GameField field);
 
 }

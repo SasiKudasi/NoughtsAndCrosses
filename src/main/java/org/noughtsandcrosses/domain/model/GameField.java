@@ -14,7 +14,4 @@ public class GameField {
     public GameField() {
         this.gameField = new int[3][3];
     }
-
-
-
 }
